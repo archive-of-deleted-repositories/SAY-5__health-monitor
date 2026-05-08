@@ -1,0 +1,62 @@
+# Local demo: the monitor + 3 mock backends.
+#
+# Build images and run:
+#   make up
+#
+# The monitor writes its sqlite DB to ./data/health_monitor.db.
+
+services:
+  healthy-api:
+    image: python:3.12-slim
+    command:
+      - python
+      - -c
+      - |
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+        HTTPServer(("", 8080), H).serve_forever()
+    ports: ["18080:8080"]
+
+  flaky-api:
+    image: python:3.12-slim
+    command:
+      - python
+      - -c
+      - |
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        import itertools
+        cycle = itertools.cycle([200, 500])
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                code = next(cycle)
+                self.send_response(code); self.end_headers(); self.wfile.write(b"x")
+        HTTPServer(("", 8080), H).serve_forever()
+    ports: ["18081:8080"]
+
+  broken-api:
+    image: python:3.12-slim
+    command:
+      - python
+      - -c
+      - |
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        class H(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(500); self.end_headers(); self.wfile.write(b"broken")
+        HTTPServer(("", 8080), H).serve_forever()
+    ports: ["18082:8080"]
+
+  monitor:
+    build: .
+    depends_on: [healthy-api, flaky-api, broken-api]
+    environment:
+      HEALTH_MONITOR_LOG_LEVEL: "INFO"
+    volumes:
+      - ./data:/data
+      - ./config:/app/config:ro
+    command:
+      - "run"
+      - "--config"
+      - "/app/config/monitor.compose.yaml"

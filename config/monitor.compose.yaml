@@ -1,0 +1,33 @@
+# Configuration used by docker-compose. Service names map to container hostnames.
+
+db_url: "sqlite:////data/health_monitor.db"
+log_level: "INFO"
+log_json: false
+
+endpoints:
+  - name: healthy-api
+    url: "http://healthy-api:8080/healthz"
+    failure_threshold: 3
+    check_interval_s: 2
+    timeout_s: 2
+    recovery:
+      kind: noop
+
+  - name: flaky-api
+    url: "http://flaky-api:8080/healthz"
+    failure_threshold: 3
+    check_interval_s: 2
+    timeout_s: 2
+    recovery:
+      kind: noop
+
+  - name: broken-api
+    url: "http://broken-api:8080/healthz"
+    failure_threshold: 3
+    check_interval_s: 2
+    timeout_s: 2
+    recovery:
+      kind: bash
+      script: /app/scripts/restart_api.sh
+      args: ["broken-api"]
+      timeout_seconds: 10

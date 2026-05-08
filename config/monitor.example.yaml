@@ -1,0 +1,48 @@
+# Example configuration for the health monitor.
+#
+# Each endpoint declares:
+#   * name              unique identifier
+#   * url               HTTP URL or host:port for tcp probes
+#   * kind              http (default) | tcp
+#   * failure_threshold consecutive failures before recovery fires (default 3)
+#   * check_interval_s  seconds between probes
+#   * timeout_s         per-probe timeout
+#   * recovery          one of: bash / systemctl / noop
+
+db_url: "sqlite:///health_monitor.db"
+log_level: "INFO"
+log_json: false
+
+endpoints:
+  - name: healthy-api
+    url: "http://localhost:18080/healthz"
+    kind: http
+    failure_threshold: 3
+    check_interval_s: 1
+    timeout_s: 2
+    recovery:
+      kind: bash
+      script: scripts/restart_api.sh
+      args: ["healthy-api"]
+      timeout_seconds: 30
+
+  - name: flaky-api
+    url: "http://localhost:18081/healthz"
+    kind: http
+    failure_threshold: 3
+    check_interval_s: 1
+    timeout_s: 2
+    recovery:
+      kind: noop
+
+  - name: broken-api
+    url: "http://localhost:18082/healthz"
+    kind: http
+    failure_threshold: 3
+    check_interval_s: 1
+    timeout_s: 2
+    recovery:
+      kind: bash
+      script: scripts/restart_api.sh
+      args: ["broken-api"]
+      timeout_seconds: 30
